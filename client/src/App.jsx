@@ -1,197 +1,521 @@
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import ReconstructionViewer from './components/ReconstructionViewer';
 import ServerStatus from './components/ServerStatus';
-import ModelSelector from './components/ModelSelector';
 import PerformanceMetrics from './components/PerformanceMetrics';
 import axios from 'axios';
 import './index.css';
 
 function App() {
+  const [selectedModel, setSelectedModel] = useState('both');
+  const [images, setImages] = useState([]);
   const [modelData, setModelData] = useState(null);
-  const [metrics, setMetrics] = useState({});
   const [loading, setLoading] = useState(false);
-  const [uploadedImages, setUploadedImages] = useState([]);
-  const [selectedModelType, setSelectedModelType] = useState('both');
-  const [serverStatus, setServerStatus] = useState(null);
+  const [error, setError] = useState('');
+  const [dragOver, setDragOver] = useState(false);
 
-  // Check server status on mount
-  useEffect(() => {
-    checkServerStatus();
-  }, []);
+  const handleImageUpload = (event) => {
+    const files = Array.from(event.target.files);
+    setImages(files);
+    setError('');
+    console.log(`📸 Selected ${files.length} images`);
+  };
 
-  const checkServerStatus = async () => {
-    try {
-      const response = await axios.get('http://localhost:5000/health');
-      setServerStatus(response.data);
-    } catch (error) {
-      console.error('Server not available:', error);
-      setServerStatus({ status: 'offline' });
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    
+    const files = Array.from(e.dataTransfer.files).filter(file => 
+      file.type.startsWith('image/')
+    );
+    
+    if (files.length > 0) {
+      setImages(files);
+      setError('');
+      console.log(`📸 Dropped ${files.length} images`);
     }
   };
 
-  const handleFileUpload = async (event) => {
-    setLoading(true);
-    const files = Array.from(event.target.files);
-    
-    if (files.length === 0) {
-      setLoading(false);
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+  };
+
+  const handleReconstruct = async () => {
+    if (images.length === 0) {
+      setError('Please select at least 1 image!');
       return;
     }
 
-    // Create image previews
-    const imagePreviews = files.map(file => URL.createObjectURL(file));
-    setUploadedImages(imagePreviews);
+    setLoading(true);
+    setError('');
+    setModelData(null);
 
-    // Prepare form data
     const formData = new FormData();
-    files.forEach(file => formData.append('images', file));
-    formData.append('model_type', selectedModelType);
+    images.forEach(image => {
+      formData.append('images', image);
+    });
+    formData.append('model_type', selectedModel);
 
     try {
-      console.log(`Uploading ${files.length} images with model type: ${selectedModelType}`);
+      console.log('🚀 Starting reconstruction...');
       
       const response = await axios.post('http://localhost:5000/reconstruct', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 60000, // 60 second timeout
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 60000,
       });
-
-      console.log('Response received:', response.data);
 
       if (response.data.success) {
         setModelData(response.data.data);
-        setMetrics(response.data.metrics || {});
-        console.log('Model data set:', response.data.data);
-        console.log('Metrics set:', response.data.metrics);
+        console.log('🎯 Point cloud data set!');
       } else {
-        console.error('Server error:', response.data.error);
-        alert('Error: ' + (response.data.error || 'Unknown error'));
+        setError(response.data.error || 'Reconstruction failed!');
       }
-
-    } catch (error) {
-      console.error('Upload error:', error);
-      alert('Upload failed: ' + (error.response?.data?.error || error.message));
+    } catch (err) {
+      console.error('❌ Request failed:', err);
+      if (err.code === 'ECONNABORTED') {
+        setError('Request timeout - Server took too long!');
+      } else if (err.response) {
+        setError(`Server error: ${err.response.data?.error || err.response.statusText}`);
+      } else {
+        setError('Cannot connect to server! Check backend is running on port 5000');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const clearData = () => {
-    setModelData(null);
-    setMetrics({});
-    setUploadedImages([]);
-    // Clear preview URLs to prevent memory leaks
-    uploadedImages.forEach(url => URL.revokeObjectURL(url));
+  const clearImages = () => {
+    setImages([]);
+    setError('');
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div style={{ 
+      minHeight: '100vh', 
+      backgroundColor: '#f8fafc',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    }}>
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-xl border-b border-gray-200/50 sticky top-0 z-40">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900">3D Reconstruction Studio</h1>
-              <p className="text-sm text-gray-600 mt-1">Transform your images into stunning 3D models</p>
-            </div>
-            <ServerStatus status={serverStatus} onRefresh={checkServerStatus} />
+      <div style={{ 
+        backgroundColor: 'white', 
+        borderBottom: '1px solid #e2e8f0',
+        padding: '1rem 0'
+      }}>
+        <div style={{ 
+          maxWidth: '1400px', 
+          margin: '0 auto', 
+          padding: '0 2rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <div>
+            <h1 style={{ 
+              fontSize: '1.5rem', 
+              fontWeight: '600', 
+              color: '#1a202c',
+              margin: 0
+            }}>
+              3D Reconstruction Studio
+            </h1>
+            <p style={{ 
+              fontSize: '0.875rem', 
+              color: '#718096',
+              margin: '0.25rem 0 0 0'
+            }}>
+              Transform your images into stunning 3D models
+            </p>
           </div>
+          
+          <ServerStatus />
         </div>
-      </header>
+      </div>
 
-      <div className="container mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-          {/* Left Panel */}
-          <div className="lg:col-span-2 space-y-6">
+      <div style={{ 
+        maxWidth: '1400px', 
+        margin: '0 auto', 
+        padding: '2rem',
+        display: 'grid',
+        gridTemplateColumns: '400px 1fr',
+        gap: '2rem',
+        minHeight: 'calc(100vh - 120px)'
+      }}>
+        {/* Left Panel */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Model Selection */}
+          <div style={{ 
+            backgroundColor: 'white', 
+            borderRadius: '12px', 
+            padding: '1.5rem',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+          }}>
+            <h3 style={{ 
+              fontSize: '1.125rem', 
+              fontWeight: '600', 
+              marginBottom: '1rem',
+              color: '#2d3748'
+            }}>
+              Model Selection
+            </h3>
             
-            {/* Model Selection */}
-            <ModelSelector 
-              selectedType={selectedModelType}
-              onTypeChange={setSelectedModelType}
-              availableModels={serverStatus?.available_models || []}
-            />
+            <div style={{ 
+              backgroundColor: '#e6fffa', 
+              border: '1px solid #81e6d9',
+              borderRadius: '8px',
+              padding: '0.75rem',
+              marginBottom: '1rem',
+              fontSize: '0.875rem',
+              color: '#2c7a7b'
+            }}>
+              Available models: nerf, gaussian_splatting
+            </div>
 
-            {/* Upload Section */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Upload Images</h2>
-              
-              <label className="block">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                padding: '0.75rem',
+                border: '2px solid',
+                borderColor: selectedModel === 'both' ? '#3182ce' : '#e2e8f0',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                backgroundColor: selectedModel === 'both' ? '#ebf8ff' : 'white'
+              }}>
                 <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  disabled={loading}
+                  type="radio"
+                  name="model"
+                  value="both"
+                  checked={selectedModel === 'both'}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  style={{ marginRight: '0.75rem' }}
                 />
-                <div className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
-                  loading 
-                    ? 'border-gray-200 bg-gray-50 cursor-not-allowed' 
-                    : 'border-gray-300 hover:border-blue-500 hover:bg-blue-50/50'
-                }`}>
-                  <svg className="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <p className="text-gray-600 font-medium">
-                    {loading ? 'Processing...' : 'Drop images here or click to browse'}
-                  </p>
-                  <p className="text-gray-400 text-sm mt-2">Support for JPG, PNG, HEIC</p>
+                <div>
+                  <div style={{ fontWeight: '600', color: '#2d3748' }}>🔥 Both Models (Compare)</div>
+                  <div style={{ fontSize: '0.875rem', color: '#718096' }}>
+                    Run both NeRF and Gaussian Splatting
+                  </div>
                 </div>
               </label>
 
-              {/* Image previews */}
-              {uploadedImages.length > 0 && (
-                <div className="mt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-gray-600">{uploadedImages.length} images selected</p>
-                    <button
-                      onClick={clearData}
-                      className="text-sm text-red-600 hover:text-red-700"
-                      disabled={loading}
-                    >
-                      Clear
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {uploadedImages.slice(0, 8).map((img, idx) => (
-                      <img 
-                        key={idx} 
-                        src={img} 
-                        alt={`Preview ${idx + 1}`} 
-                        className="w-full h-20 object-cover rounded-lg border border-gray-200" 
-                      />
-                    ))}
-                    {uploadedImages.length > 8 && (
-                      <div className="w-full h-20 bg-gray-100 rounded-lg flex items-center justify-center text-gray-600 text-sm border border-gray-200">
-                        +{uploadedImages.length - 8} more
-                      </div>
-                    )}
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                padding: '0.75rem',
+                border: '2px solid',
+                borderColor: selectedModel === 'nerf' ? '#3182ce' : '#e2e8f0',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                backgroundColor: selectedModel === 'nerf' ? '#ebf8ff' : 'white'
+              }}>
+                <input
+                  type="radio"
+                  name="model"
+                  value="nerf"
+                  checked={selectedModel === 'nerf'}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  style={{ marginRight: '0.75rem' }}
+                />
+                <div>
+                  <div style={{ fontWeight: '600', color: '#2d3748' }}>🧠 NeRF Only</div>
+                  <div style={{ fontSize: '0.875rem', color: '#718096' }}>
+                    Neural Radiance Fields
                   </div>
                 </div>
-              )}
+              </label>
+
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                padding: '0.75rem',
+                border: '2px solid',
+                borderColor: selectedModel === 'gaussian_splatting' ? '#3182ce' : '#e2e8f0',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                backgroundColor: selectedModel === 'gaussian_splatting' ? '#ebf8ff' : 'white'
+              }}>
+                <input
+                  type="radio"
+                  name="model"
+                  value="gaussian_splatting"
+                  checked={selectedModel === 'gaussian_splatting'}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  style={{ marginRight: '0.75rem' }}
+                />
+                <div>
+                  <div style={{ fontWeight: '600', color: '#2d3748' }}>✨ Gaussian Splatting Only</div>
+                  <div style={{ fontSize: '0.875rem', color: '#718096' }}>
+                    3D Gaussian Splatting
+                  </div>
+                </div>
+              </label>
             </div>
-
-            {/* Performance Metrics */}
-            <PerformanceMetrics metrics={metrics} />
-
           </div>
 
-          {/* Right Panel - 3D Viewer */}
-          <div className="lg:col-span-3 h-[600px]">
+          {/* Upload Images */}
+          <div style={{ 
+            backgroundColor: 'white', 
+            borderRadius: '12px', 
+            padding: '1.5rem',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+          }}>
+            <h3 style={{ 
+              fontSize: '1.125rem', 
+              fontWeight: '600', 
+              marginBottom: '1rem',
+              color: '#2d3748'
+            }}>
+              Upload Images
+            </h3>
+
+            {/* Drag & Drop Area */}
+            <div
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              style={{
+                border: '2px dashed',
+                borderColor: dragOver ? '#3182ce' : '#cbd5e0',
+                borderRadius: '8px',
+                padding: '3rem 1rem',
+                textAlign: 'center',
+                backgroundColor: dragOver ? '#ebf8ff' : '#f7fafc',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                marginBottom: '1rem'
+              }}
+              onClick={() => document.getElementById('fileInput').click()}
+            >
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⬆️</div>
+              <div style={{ fontWeight: '600', color: '#2d3748', marginBottom: '0.5rem' }}>
+                Drop images here or click to browse
+              </div>
+              <div style={{ fontSize: '0.875rem', color: '#718096' }}>
+                Support for JPG, PNG, HEIC
+              </div>
+            </div>
+
+            <input
+              id="fileInput"
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleImageUpload}
+              style={{ display: 'none' }}
+            />
+
+            {/* Selected Images */}
+            {images.length > 0 && (
+              <div>
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  marginBottom: '1rem'
+                }}>
+                  <span style={{ fontSize: '0.875rem', color: '#2d3748' }}>
+                    {images.length} images selected
+                  </span>
+                  <button
+                    onClick={clearImages}
+                    style={{
+                      fontSize: '0.875rem',
+                      color: '#e53e3e',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Clear
+                  </button>
+                </div>
+
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(4, 1fr)', 
+                  gap: '0.5rem',
+                  maxHeight: '200px',
+                  overflowY: 'auto'
+                }}>
+                  {images.slice(0, 12).map((image, index) => (
+                    <div key={index} style={{ position: 'relative' }}>
+                      <img
+                        src={URL.createObjectURL(image)}
+                        alt={`Preview ${index + 1}`}
+                        style={{
+                          width: '100%',
+                          height: '60px',
+                          objectFit: 'cover',
+                          borderRadius: '4px'
+                        }}
+                      />
+                    </div>
+                  ))}
+                  {images.length > 12 && (
+                    <div style={{
+                      width: '100%',
+                      height: '60px',
+                      backgroundColor: '#f7fafc',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.75rem',
+                      color: '#718096'
+                    }}>
+                      +{images.length - 12} more
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Reconstruct Button */}
+            <button
+              onClick={handleReconstruct}
+              disabled={loading || images.length === 0}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                backgroundColor: loading || images.length === 0 ? '#a0aec0' : '#3182ce',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '1rem',
+                fontWeight: '600',
+                cursor: loading || images.length === 0 ? 'not-allowed' : 'pointer',
+                marginTop: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              {loading ? (
+                <>
+                  <div style={{
+                    width: '1rem',
+                    height: '1rem',
+                    border: '2px solid transparent',
+                    borderTop: '2px solid white',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }}></div>
+                  Reconstructing...
+                </>
+              ) : (
+                <>🚀 Start Reconstruction</>
+              )}
+            </button>
+
+            {error && (
+              <div style={{
+                marginTop: '1rem',
+                padding: '0.75rem',
+                backgroundColor: '#fed7d7',
+                border: '1px solid #feb2b2',
+                borderRadius: '6px',
+                color: '#c53030',
+                fontSize: '0.875rem'
+              }}>
+                ❌ {error}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Panel - 3D Viewer */}
+        <div style={{ 
+          backgroundColor: 'white', 
+          borderRadius: '12px', 
+          overflow: 'hidden',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <div style={{ 
+            padding: '1.5rem 1.5rem 0 1.5rem',
+            borderBottom: '1px solid #e2e8f0'
+          }}>
+            <h3 style={{ 
+              fontSize: '1.125rem', 
+              fontWeight: '600', 
+              margin: 0,
+              color: '#2d3748'
+            }}>
+              3D Reconstruction
+            </h3>
+          </div>
+
+          <div style={{ flex: 1, minHeight: '500px' }}>
             <ReconstructionViewer pointCloud={modelData} />
           </div>
         </div>
       </div>
 
+      {/* Performance Metrics - KHÔNG BỊ CHE */}
+      {modelData && (
+        <div style={{ 
+          maxWidth: '1400px', 
+          margin: '0 auto', 
+          padding: '0 2rem 2rem 2rem'
+        }}>
+          <PerformanceMetrics results={modelData} />
+        </div>
+      )}
+
       {/* Loading Overlay */}
       {loading && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-sm w-full mx-4">
-            <div className="w-16 h-16 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-900 font-medium text-lg text-center">Processing images...</p>
-            <p className="text-gray-500 text-sm mt-2 text-center">This may take a few moments</p>
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '2rem',
+            textAlign: 'center',
+            maxWidth: '400px',
+            margin: '1rem'
+          }}>
+            <div style={{
+              width: '3rem',
+              height: '3rem',
+              border: '4px solid #e2e8f0',
+              borderTop: '4px solid #3182ce',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto 1rem'
+            }}></div>
+            <h4 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Rendering 3D Model...</h4>
+            <p style={{ color: '#718096', fontSize: '0.875rem' }}>
+              Processing {images.length} images with {selectedModel === 'both' ? 'both models' : selectedModel}
+            </p>
           </div>
         </div>
       )}
+
+      <style jsx>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

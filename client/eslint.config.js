@@ -34,6 +34,7 @@ export default [
       'react/jsx-uses-react': 'error',
       'react/jsx-uses-vars': 'error',
       'react/react-in-jsx-scope': 'off', // Not needed in React 17+
+      'react/prop-types': 'off', // Disable prop-types validation
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },
