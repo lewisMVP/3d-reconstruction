@@ -1,0 +1,27 @@
+# Virtual Environment
+venv/
+server/venv/
+client/node_modules/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Models (large files)
+*.pth
+*.pt
+*.ckpt
+models/
+
+# Training data
+training_data/
+*.jpg
+*.jpeg
+*.png
+
+# OS
+.DS_Store
+Thumbs.db
