@@ -1,50 +1,55 @@
-# 3D Reconstruction
+# 3D Reconstruction Studio
 
-A Python-based 3D reconstruction project with a modern React interface for creating three-dimensional models from 2D images and point cloud data.
+A modern 3D reconstruction application implementing **Neural Radiance Fields (NeRF)** and **Gaussian Splatting** techniques. Built with a Python Flask backend for AI processing and a React frontend for interactive visualization.
 
-## Overview
+## 🚀 Overview
 
-This project combines powerful Python computer vision algorithms with a sleek React frontend to provide an intuitive interface for 3D reconstruction tasks. The core reconstruction engine is built in Python, leveraging libraries like OpenCV, NumPy, and other computer vision tools, while the user interface is crafted with React for a responsive web experience.
+This project combines cutting-edge computer vision algorithms with a sleek web interface to reconstruct 3D scenes from 2D images. The system uses MiDaS for depth estimation and implements both NeRF and Gaussian Splatting methodologies for high-quality 3D reconstruction.
 
-## Architecture
+## ✨ Features
 
-- **Backend**: Python-based reconstruction algorithms and processing
-- **Frontend**: React interface for user interaction and visualization
-- **Communication**: RESTful API or WebSocket connection between frontend and backend
+- **Neural Radiance Fields (NeRF)**: Volumetric scene reconstruction from multiple viewpoints
+- **Gaussian Splatting**: Advanced point cloud generation with realistic rendering
+- **Real-time Processing**: Live feedback during reconstruction with performance metrics
+- **Interactive 3D Viewer**: Web-based visualization powered by Three.js
+- **Multiple Input Support**: Drag-and-drop image upload with HEIC conversion
+- **Modern UI**: Clean React interface with Tailwind CSS styling
+- **Server Monitoring**: Real-time backend status and performance tracking
 
-## Features
+## 🏗️ Architecture
 
-- **Image-based 3D Reconstruction**: Convert multiple 2D images into 3D models
-- **Point Cloud Processing**: Advanced point cloud manipulation and visualization
-- **Interactive React Interface**: Modern, responsive web UI
-- **Real-time Processing**: Live feedback during reconstruction
-- **Multiple Input Formats**: Support for various image and data formats
-- **Export Options**: Save results in popular 3D formats
+```
+Frontend (React + Vite)  ←→  Backend (Flask + PyTorch)
+     ↓                              ↓
+Three.js Viewer          ←→  MiDaS + CLIP Models
+     ↓                              ↓
+Point Cloud Display      ←→  NeRF/GS Processing
+```
 
-## Tech Stack
+## 🛠️ Tech Stack
 
-### Backend (Python)
+### Backend
+- **Flask**: Web API framework with CORS support
+- **PyTorch**: Deep learning framework for model inference
+- **MiDaS**: Depth estimation from monocular images
+- **CLIP**: Vision-language understanding
 - **OpenCV**: Computer vision and image processing
-- **NumPy**: Numerical computations
-- **SciPy**: Scientific computing
-- **Matplotlib**: Visualization and plotting
-- **Flask/FastAPI**: Web API framework
-- **PIL/Pillow**: Image manipulation
+- **NumPy**: Numerical computations for point cloud generation
 
-### Frontend (React)
-- **React**: User interface framework
-- **Three.js**: 3D rendering and visualization
-- **WebGL**: Hardware-accelerated graphics
+### Frontend
+- **React 18**: Modern UI framework with hooks
+- **Vite**: Fast build tool and development server
+- **Three.js**: 3D graphics and WebGL rendering
+- **Tailwind CSS**: Utility-first CSS framework
 - **Axios**: HTTP client for API communication
-- **Material-UI/Chakra UI**: Component library
 
-## Installation
+
+## 🚀 Installation
 
 ### Prerequisites
 - Python 3.8+
 - Node.js 16+
-- pip (Python package manager)
-- npm or yarn
+- PyTorch with CUDA support (recommended)
 
 ### Backend Setup
 
@@ -53,179 +58,188 @@ This project combines powerful Python computer vision algorithms with a sleek Re
 git clone https://github.com/lewisMVP/3d-reconstruction.git
 cd 3d-reconstruction
 
-# Create virtual environment
+# Set up Python environment
+cd server
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# Install Python dependencies
-pip install -r requirements.txt
+# Install dependencies
+pip install flask flask-cors torch torchvision opencv-python numpy pillow-heif
 ```
 
 ### Frontend Setup
 
 ```bash
-# Navigate to frontend directory (assuming it exists)
-cd frontend  # or wherever your React app is located
+# Navigate to client directory
+cd client
 
 # Install dependencies
 npm install
+
+# Install additional packages
+npm install axios three @vitejs/plugin-react
 ```
 
-## Usage
+### Model Setup
 
-### Starting the Backend
+Place your pre-trained models in the `server/models/` directory:
+- `midas.pt` - MiDaS depth estimation model
+- `clip.pt` - CLIP vision-language model
+
+## 🏃‍♂️ Usage
+
+### Start the Backend
 
 ```bash
-# Activate virtual environment
+cd server
 source venv/bin/activate
-
-# Start the Python server
 python app.py
-# or
-python -m flask run
 ```
+Backend runs on `http://localhost:5000`
 
-### Starting the Frontend
+### Start the Frontend
 
 ```bash
-# In a new terminal, navigate to frontend directory
-cd frontend
+cd client
+npm run dev
+```
+Frontend runs on `http://localhost:5173`
 
-# Start React development server
-npm start
+### Using the Application
+
+1. **Upload Images**: Drag and drop images or use the file picker
+2. **Select Model**: Choose between NeRF, Gaussian Splatting, or both
+3. **Reconstruct**: Click the reconstruct button to process images
+4. **Visualize**: View the generated 3D point cloud in the interactive viewer
+5. **Monitor**: Track processing performance and server status
+
+## 🎯 API Endpoints
+
+### Reconstruction
+```http
+POST /reconstruct
+Content-Type: multipart/form-data
+
+Form Data:
+- images: Multiple image files
+- model_type: "nerf", "gaussian_splatting", or "both"
+
+Response:
+{
+  "success": true,
+  "data": {
+    "points": [[x, y, z], ...],
+    "colors": [[r, g, b], ...]
+  }
+}
 ```
 
-The application will be available at `http://localhost:3000` (React) with the Python backend running on `http://localhost:5000`.
+## 🔬 Algorithms
 
-## API Endpoints
+### NeRF Implementation
+- Uses MiDaS for monocular depth estimation
+- Converts depth maps to 3D point clouds
+- Samples points at 4-pixel intervals for performance
+- Applies camera intrinsics for world coordinate transformation
 
-### Core Reconstruction
-- `POST /api/reconstruct` - Start 3D reconstruction from images
-- `GET /api/status/{job_id}` - Check reconstruction status
-- `GET /api/result/{job_id}` - Download reconstruction results
+### Gaussian Splatting
+- Generates high-quality point clouds with 15,000+ points
+- Creates realistic 3D scenes with proper color distribution
+- Optimized for real-time rendering and interaction
 
-### File Management
-- `POST /api/upload` - Upload images for processing
-- `GET /api/files` - List uploaded files
-- `DELETE /api/files/{file_id}` - Remove files
+## 🎨 Features in Detail
 
-## Algorithms Implemented
+### Image Processing
+- **HEIC Support**: Automatic conversion from HEIC to JPG format
+- **Multiple Formats**: Support for common image formats
+- **Batch Processing**: Handle multiple images simultaneously
 
-- **Structure from Motion (SfM)**: Extract 3D structure from image sequences
-- **Multi-View Stereo (MVS)**: Dense reconstruction from calibrated images
-- **SLAM**: Simultaneous Localization and Mapping
-- **Point Cloud Registration**: Align multiple point clouds
-- **Mesh Generation**: Create triangulated meshes from point clouds
-- **Texture Mapping**: Apply textures to 3D models
+### 3D Visualization
+- **Interactive Viewer**: Rotate, zoom, and pan through 3D scenes
+- **Real-time Rendering**: Smooth 60fps visualization
+- **Point Cloud Display**: Colored point clouds with depth information
 
-## Development
+### Performance Monitoring
+- **Live Metrics**: Real-time processing statistics
+- **Server Status**: Backend health and model loading status
+- **Progress Tracking**: Visual feedback during reconstruction
 
-### Python Development
+## 🛠️ Development
+
+### Running in Development Mode
 
 ```bash
-# Install development dependencies
-pip install -r requirements-dev.txt
+# Backend with auto-reload
+cd server
+export FLASK_ENV=development
+python app.py
 
-# Run tests
-python -m pytest tests/
-
-# Code formatting
-black src/
-flake8 src/
+# Frontend with hot reload
+cd client
+npm run dev
 ```
 
-### React Development
+### Building for Production
 
 ```bash
-# Run frontend tests
-npm test
-
-# Build for production
+# Build frontend
+cd client
 npm run build
 
-# Lint code
-npm run lint
+# Serve with production Flask server
+cd server
+gunicorn -w 4 -b 0.0.0.0:5000 app:app
 ```
 
-## Configuration
-
-Create a `.env` file in the root directory:
-
-```env
-# Backend configuration
-FLASK_ENV=development
-FLASK_APP=app.py
-DATABASE_URL=sqlite:///app.db
-
-# Frontend configuration (in frontend/.env)
-REACT_APP_API_URL=http://localhost:5000
-REACT_APP_ENV=development
-```
-
-## Docker Support
-
-```bash
-# Build and run with Docker Compose
-docker-compose up --build
-
-# Or build individual containers
-docker build -t 3d-reconstruction-backend .
-docker build -t 3d-reconstruction-frontend ./frontend
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass
-6. Commit your changes (`git commit -m 'Add amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
-8. Open a Pull Request
-
-## Performance Optimization
-
-- **GPU Acceleration**: Utilize CUDA for intensive computations
-- **Parallel Processing**: Multi-threading for image processing
-- **Memory Management**: Efficient handling of large datasets
-- **Caching**: Cache intermediate results for faster processing
-
-## Troubleshooting
+## 🐛 Troubleshooting
 
 ### Common Issues
 
-1. **OpenCV Installation**: Install system dependencies for OpenCV
-2. **Memory Errors**: Reduce image resolution or batch size
-3. **CORS Issues**: Configure proper CORS settings in Flask
-4. **Port Conflicts**: Change default ports in configuration
+1. **Model Loading Errors**: Ensure `midas.pt` and `clip.pt` are in `server/models/`
+2. **CORS Issues**: Flask-CORS is configured for all origins in development
+3. **Memory Issues**: Reduce image resolution or enable GPU acceleration
+4. **Port Conflicts**: Backend uses 5000, frontend uses 5173
 
-## License
+### HEIC Conversion
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+If you have HEIC images from iPhone/macOS:
 
-## Contact
+```bash
+cd server
+python utils/convert_heic.py
+```
 
-Lewis - [@lewisMVP](https://github.com/lewisMVP)
+## 🚀 Future Enhancements
+
+- [ ] Real-time NeRF training
+- [ ] Advanced Gaussian Splatting with neural networks
+- [ ] Mobile device support
+- [ ] Cloud processing integration
+- [ ] Export to standard 3D formats (PLY, OBJ)
+- [ ] Multi-user collaboration features
+
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 👤 Author
+
+**Lewis** - [@lewisMVP](https://github.com/lewisMVP)
 
 Project Link: [https://github.com/lewisMVP/3d-reconstruction](https://github.com/lewisMVP/3d-reconstruction)
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
-- OpenCV community for computer vision tools
-- React community for frontend framework
-- Research papers and academic contributions to 3D reconstruction
-- Open source contributors
-
-## Roadmap
-
-- [ ] Add real-time reconstruction capabilities
-- [ ] Implement advanced SLAM algorithms
-- [ ] Mobile app support
-- [ ] Cloud processing integration
-- [ ] AR/VR visualization features
-- [ ] Machine learning-based improvements
+- MiDaS team for depth estimation models
+- CLIP researchers for vision-language models
+- NeRF and Gaussian Splatting research communities
+- Three.js and React development teams
 
 ---
 
-*Last updated: August 2025*
+*Built with ❤️ using modern web technologies and cutting-edge AI*
