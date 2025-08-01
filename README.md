@@ -2,6 +2,8 @@
 
 A modern 3D reconstruction application implementing **Neural Radiance Fields (NeRF)** and **Gaussian Splatting** techniques. Built with a Python Flask backend for AI processing and a React frontend for interactive visualization.
 
+<img width="1918" height="949" alt="image" src="https://github.com/user-attachments/assets/f8d37ffa-5d95-49e8-9bda-2b1679fa1d3f" />
+
 ## 🚀 Overview
 
 This project combines cutting-edge computer vision algorithms with a sleek web interface to reconstruct 3D scenes from 2D images. The system uses MiDaS for depth estimation and implements both NeRF and Gaussian Splatting methodologies for high-quality 3D reconstruction.
